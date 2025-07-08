@@ -92,7 +92,7 @@ const ProductSchema = z.object({
     res.send(result);
   });
 
-// Initialisation de la connexion à MongoDBa
+// Initialisation de la connexion à MongoDB
 client.connect().then(() => {
   // Sélection de la base de données à utiliser dans MongoDB
   db = client.db("myDB");
