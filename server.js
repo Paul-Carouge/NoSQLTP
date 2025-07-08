@@ -182,23 +182,6 @@ const ProductSchema = z.object({
         return res.status(404).send({ error: "Produit non trouvé" });
       }
       
-      // Récupérer le produit mis à jour
-      const updatedProduct = await db
-        .collection("products")
-        .aggregate([
-          { $match: { _id: objectId } },
-          {
-            $lookup: {
-              from: "categories",
-              localField: "categoryIds",
-              foreignField: "_id",
-              as: "categories",
-            },
-          },
-        ])
-        .toArray();
-      
-      res.send(updatedProduct[0]);
     } catch (error) {
       res.status(400).send({ error: "ID invalide" });
     }
