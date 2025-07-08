@@ -8,7 +8,7 @@ let db;
 
 app.use(express.json());
 
-// Schemas
+// Schema pour les produits
 const ProductSchema = z.object({
     _id: z.string(),
     name: z.string(),
@@ -17,7 +17,7 @@ const ProductSchema = z.object({
   });
   const CreateProductSchema = ProductSchema.omit({ _id: true });
 
-  
+
 // Ajouter un produit
 app.post("/products", async (req, res) => {
     const result = await CreateProductSchema.safeParse(req.body);
