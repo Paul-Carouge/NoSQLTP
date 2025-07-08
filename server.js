@@ -25,18 +25,25 @@ const ProductSchema = z.object({
   
 
   // Ajouter un produit
-app.post("/products", async (req, res) => {
+  app.post("/products", async (req, res) => {
     const result = await CreateProductSchema.safeParse(req.body);
   
     // Si Zod a réussi à parser le corps de la requête
     if (result.success) {
       const { name, about, price, categoryIds } = result.data;
+      const categoryObjectIds = categoryIds.map((id) => new ObjectId(id));
   
       const ack = await db
         .collection("products")
-        .insertOne({ name, about, price, categoryIds });
+        .insertOne({ name, about, price, categoryIds: categoryObjectIds });
   
-      res.send({ _id: ack.insertedId, name, about, price, categoryIds });
+      res.send({
+        _id: ack.insertedId,
+        name,
+        about,
+        price,
+        categoryIds: categoryObjectIds,
+      });
     } else {
       res.status(400).send(result);
     }
@@ -46,7 +53,7 @@ app.post("/products", async (req, res) => {
   app.post("/categories", async (req, res) => {
     const result = await CreateCategorySchema.safeParse(req.body);
   
-    // If Zod parsed successfully the request body
+    // Si Zod a réussi à parser le corps de la requête
     if (result.success) {
       const { name } = result.data;
   
