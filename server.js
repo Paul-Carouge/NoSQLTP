@@ -14,8 +14,15 @@ const ProductSchema = z.object({
     name: z.string(),
     about: z.string(),
     price: z.number().positive(),
+    categoryIds: z.array(z.string())
   });
   const CreateProductSchema = ProductSchema.omit({ _id: true });
+  const CategorySchema = z.object({
+    _id: z.string(),
+    name: z.string(),
+  });
+  const CreateCategorySchema = CategorySchema.omit({ _id: true });
+  
 
 
 // Ajouter un produit
