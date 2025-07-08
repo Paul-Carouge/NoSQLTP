@@ -50,6 +50,26 @@ const ProductSchema = z.object({
     }
   });
 
+  // Récupérer tous les produits
+  app.get("/products", async (req, res) => {
+    const result = await db
+      .collection("products")
+      .aggregate([
+        { $match: {} },
+        {
+          $lookup: {
+            from: "categories",
+            localField: "categoryIds",
+            foreignField: "_id",
+            as: "categories",
+          },
+        },
+      ])
+      .toArray();
+  
+    res.send(result);
+  });
+
   // Ajouter une catégorie
   app.post("/categories", async (req, res) => {
     const result = await CreateCategorySchema.safeParse(req.body);
