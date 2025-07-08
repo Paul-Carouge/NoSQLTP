@@ -70,6 +70,160 @@ const ProductSchema = z.object({
     res.send(result);
   });
 
+  // Récupérer un produit par ID
+  app.get("/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const objectId = new ObjectId(id);
+      
+      const result = await db
+        .collection("products")
+        .aggregate([
+          { $match: { _id: objectId } },
+          {
+            $lookup: {
+              from: "categories",
+              localField: "categoryIds",
+              foreignField: "_id",
+              as: "categories",
+            },
+          },
+        ])
+        .toArray();
+      
+      if (result.length === 0) {
+        return res.status(404).send({ error: "Produit non trouvé" });
+      }
+      
+      res.send(result[0]);
+    } catch (error) {
+      res.status(400).send({ error: "ID invalide" });
+    }
+  });
+
+  // Mettre à jour complètement un produit
+  app.put("/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const objectId = new ObjectId(id);
+      
+      const result = await CreateProductSchema.safeParse(req.body);
+      
+      if (result.success) {
+        const { name, about, price, categoryIds } = result.data;
+        const categoryObjectIds = categoryIds.map((id) => new ObjectId(id));
+        
+        const updateResult = await db
+          .collection("products")
+          .replaceOne(
+            { _id: objectId },
+            { name, about, price, categoryIds: categoryObjectIds }
+          );
+        
+        if (updateResult.matchedCount === 0) {
+          return res.status(404).send({ error: "Produit non trouvé" });
+        }
+        
+        res.send({ 
+          _id: objectId, 
+          name, 
+          about, 
+          price, 
+          categoryIds: categoryObjectIds 
+        });
+      } else {
+        res.status(400).send(result);
+      }
+    } catch (error) {
+      res.status(400).send({ error: "ID invalide" });
+    }
+  });
+
+  // Mettre à jour partiellement un produit
+  app.patch("/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const objectId = new ObjectId(id);
+      
+      const updateData = {};
+      
+      // Vérifier et ajouter chaque champ s'il est présent
+      if (req.body.name !== undefined) {
+        updateData.name = req.body.name;
+      }
+      if (req.body.about !== undefined) {
+        updateData.about = req.body.about;
+      }
+      if (req.body.price !== undefined) {
+        if (typeof req.body.price !== 'number' || req.body.price <= 0) {
+          return res.status(400).send({ error: "Le prix doit être un nombre positif" });
+        }
+        updateData.price = req.body.price;
+      }
+      if (req.body.categoryIds !== undefined) {
+        if (!Array.isArray(req.body.categoryIds)) {
+          return res.status(400).send({ error: "categoryIds doit être un tableau" });
+        }
+        updateData.categoryIds = req.body.categoryIds.map((id) => new ObjectId(id));
+      }
+      
+      if (Object.keys(updateData).length === 0) {
+        return res.status(400).send({ error: "Aucun champ à mettre à jour" });
+      }
+      
+      const updateResult = await db
+        .collection("products")
+        .updateOne(
+          { _id: objectId },
+          { $set: updateData }
+        );
+      
+      if (updateResult.matchedCount === 0) {
+        return res.status(404).send({ error: "Produit non trouvé" });
+      }
+      
+      // Récupérer le produit mis à jour
+      const updatedProduct = await db
+        .collection("products")
+        .aggregate([
+          { $match: { _id: objectId } },
+          {
+            $lookup: {
+              from: "categories",
+              localField: "categoryIds",
+              foreignField: "_id",
+              as: "categories",
+            },
+          },
+        ])
+        .toArray();
+      
+      res.send(updatedProduct[0]);
+    } catch (error) {
+      res.status(400).send({ error: "ID invalide" });
+    }
+  });
+
+  // Supprimer un produit
+  app.delete("/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const objectId = new ObjectId(id);
+      
+      const deleteResult = await db
+        .collection("products")
+        .deleteOne({ _id: objectId });
+      
+      if (deleteResult.deletedCount === 0) {
+        return res.status(404).send({ error: "Produit non trouvé" });
+      }
+      
+      res.send({ message: "Produit supprimé avec succès" });
+    } catch (error) {
+      res.status(400).send({ error: "ID invalide" });
+    }
+  });
+
   // Ajouter une catégorie
   app.post("/categories", async (req, res) => {
     const result = await CreateCategorySchema.safeParse(req.body);
