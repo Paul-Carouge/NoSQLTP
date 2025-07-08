@@ -86,6 +86,12 @@ const ProductSchema = z.object({
     }
   });
 
+  // Récupérer toutes les catégories
+  app.get("/categories", async (req, res) => {
+    const result = await db.collection("categories").find().toArray();
+    res.send(result);
+  });
+
 // Initialisation de la connexion à MongoDBa
 client.connect().then(() => {
   // Sélection de la base de données à utiliser dans MongoDB
