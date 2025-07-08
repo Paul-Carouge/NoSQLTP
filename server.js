@@ -36,9 +36,9 @@ app.post("/products", async (req, res) => {
     }
   });
 
-// Init mongodb client connection
+// Initialisation de la connexion à MongoDBa
 client.connect().then(() => {
-  // Select db to use in mongodb
+  // Sélection de la base de données à utiliser dans MongoDB
   db = client.db("myDB");
   app.listen(port, () => {
     console.log(`Listening on http://localhost:${port}`);
