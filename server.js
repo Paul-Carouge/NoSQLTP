@@ -1,13 +1,24 @@
 const express = require("express");
 const { MongoClient, ObjectId } = require("mongodb");
 const { z } = require("zod");
+const { createServer } = require("http");
+const { Server } = require("socket.io");
 
 const app = express();
+const server = createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
+
 const port = 8000;
 const client = new MongoClient("mongodb://localhost:27017");
 let db;
 
 app.use(express.json());
+app.use(express.static('public'));
 
 // Schema pour les produits
 const ProductSchema = z.object({
@@ -38,13 +49,18 @@ const ProductSchema = z.object({
         .collection("products")
         .insertOne({ name, about, price, categoryIds: categoryObjectIds });
   
-      res.send({
+      const newProduct = {
         _id: ack.insertedId,
         name,
         about,
         price,
         categoryIds: categoryObjectIds,
-      });
+      };
+
+      // Émettre l'événement de création
+      io.emit("products", { action: "created", product: newProduct });
+  
+      res.send(newProduct);
     } else {
       res.status(400).send(result);
     }
@@ -124,13 +140,18 @@ const ProductSchema = z.object({
           return res.status(404).send({ error: "Produit non trouvé" });
         }
         
-        res.send({ 
+        const updatedProduct = { 
           _id: objectId, 
           name, 
           about, 
           price, 
           categoryIds: categoryObjectIds 
-        });
+        };
+
+        // Émettre l'événement de mise à jour
+        io.emit("products", { action: "updated", product: updatedProduct });
+        
+        res.send(updatedProduct);
       } else {
         res.status(400).send(result);
       }
@@ -182,6 +203,26 @@ const ProductSchema = z.object({
         return res.status(404).send({ error: "Produit non trouvé" });
       }
       
+      // Récupérer le produit mis à jour
+      const updatedProduct = await db
+        .collection("products")
+        .aggregate([
+          { $match: { _id: objectId } },
+          {
+            $lookup: {
+              from: "categories",
+              localField: "categoryIds",
+              foreignField: "_id",
+              as: "categories",
+            },
+          },
+        ])
+        .toArray();
+      
+      // Émettre l'événement de mise à jour partielle
+      io.emit("products", { action: "patched", product: updatedProduct[0] });
+      
+      res.send(updatedProduct[0]);
     } catch (error) {
       res.status(400).send({ error: "ID invalide" });
     }
@@ -200,6 +241,9 @@ const ProductSchema = z.object({
       if (deleteResult.deletedCount === 0) {
         return res.status(404).send({ error: "Produit non trouvé" });
       }
+      
+      // Émettre l'événement de suppression
+      io.emit("products", { action: "deleted", productId: id });
       
       res.send({ message: "Produit supprimé avec succès" });
     } catch (error) {
@@ -233,7 +277,16 @@ const ProductSchema = z.object({
 client.connect().then(() => {
   // Sélection de la base de données à utiliser dans MongoDB
   db = client.db("myDB");
-  app.listen(port, () => {
+  server.listen(port, () => {
     console.log(`Listening on http://localhost:${port}`);
+  });
+});
+
+// Gestion des connexions Socket.io
+io.on("connection", (socket) => {
+  console.log("Un client s'est connecté:", socket.id);
+  
+  socket.on("disconnect", () => {
+    console.log("Un client s'est déconnecté:", socket.id);
   });
 });
